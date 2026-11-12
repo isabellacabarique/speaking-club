@@ -82,6 +82,52 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding-bottom:32px
 .help{margin-top:18px;font-size:.92rem;color:var(--muted)}
 .help a{display:inline-block;margin-top:2px;color:var(--accent-strong);font-weight:600}
 [hidden]{display:none!important}
+
+/* ---- dos horarios, versión compacta ---- */
+main{padding-block:28px 48px;gap:14px}
+h1{margin:0}
+.sub{margin:-8px 0 0}
+.tznote{margin:-10px 0 0;text-align:center;color:var(--muted);font-size:.88rem}
+.tznote strong{color:var(--fg);font-weight:600}
+.rule{display:flex;gap:14px;align-items:center;background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:12px;padding:12px 16px}
+.rule-mark{flex:0 0 auto;width:34px;height:34px;border-radius:50%;background:var(--surface);border:1.5px solid var(--accent);color:var(--accent-strong);display:flex;align-items:center;justify-content:center;font-family:var(--display);font-weight:700;font-size:1.05rem}
+.rule-text{min-width:0}
+.rule-title{font-family:var(--display);font-weight:600;font-size:1rem}
+.rule p{margin:0;color:var(--muted);font-size:.9rem;line-height:1.4}
+.rule p strong{color:var(--fg)}
+#list{gap:12px!important}
+.card{padding:14px 16px;gap:16px;border-radius:14px;align-items:flex-start}
+.date{width:58px;height:58px;border-radius:11px}
+.date .d{font-size:1.45rem}
+.date .m{font-size:.7rem;margin-top:3px}
+.info{gap:6px}
+.info h2{font-size:1.05rem}
+.badge{font-size:.65rem;padding:2px 8px}
+.slots{display:flex;flex-direction:column;gap:6px}
+.slot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px 14px;padding:8px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.slot-when{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 10px;min-width:0}
+.slot-label{font-size:.68rem;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-strong)}
+.slot .time{font-size:.95rem}
+.tz{font-weight:400;color:var(--muted);font-size:.82rem}
+.slot .co{font-size:.8rem;margin:0}
+.slot-actions{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.slot .join{margin:0;font-size:.88rem;padding:6px 14px;border-radius:8px;gap:6px}
+.slot .join svg{width:15px;height:15px}
+.slot .cal{display:inline-flex;flex-wrap:wrap;align-items:center;gap:4px;font-size:.8rem}
+.cal-t{color:var(--muted)}
+.slot .cal a{padding:3px 8px;font-size:.8rem;border-radius:6px}
+.slot.done{opacity:.5}
+.ended{color:var(--muted);font-size:.82rem}
+main{max-width:860px}
+.slot .cal a{border:0;background:none;padding:2px 3px;text-decoration:underline;text-underline-offset:2px}
+@media (min-width:700px){ .slot{flex-wrap:nowrap} }
+@media (max-width:560px){
+  h1{font-size:1.5rem}
+  .card{flex-direction:column;gap:8px;padding:12px}
+  .date{width:auto;height:auto;flex-direction:row;gap:6px;padding:4px 10px;border-radius:8px;align-self:flex-start}
+  .date .d{font-size:1rem}.date .m{margin:0;font-size:.75rem}
+  .card .info{width:100%}
+}
 </style>
 </head>
 <body style="margin:0">
@@ -105,11 +151,16 @@ footer{text-align:center;color:var(--muted);font-size:.85rem;padding-bottom:32px
 <div id="app" hidden>
 
 <main>
-  <h1>Horario de clases · Speaking Club</h1>
-  <p class="sub">Todos los jueves · 6:00 – 7:00 AM hora Colombia</p>
-  <div class="note">
-    <span>La hora que ves en cada clase ya está ajustada a <strong>tu zona horaria</strong> (detectada por tu navegador).</span>
-  </div>
+  <h1>Horario · Speaking Club</h1>
+  <p class="sub">Todos los jueves · 6:00 AM y 8:10 AM hora Colombia</p>
+  <p class="tznote">Las horas ya están ajustadas a <strong>tu zona horaria</strong>.</p>
+  <aside class="rule" aria-label="Regla de asistencia">
+    <div class="rule-mark" aria-hidden="true">1</div>
+    <div class="rule-text">
+      <div class="rule-title">Una sesión por día</div>
+      <p>Cada jueves hay dos horarios. Elige <strong>solo uno</strong>: puedes unirte a una sola sesión de speaking por día. Cada semana puedes escoger el horario que mejor te quede.</p>
+    </div>
+  </aside>
   <div id="list" style="display:flex;flex-direction:column;gap:22px"></div>
 </main>
 <footer>immersa academy · Speaking Club</footer>
@@ -121,7 +172,11 @@ const LOCKED = {"s":"ngUuFwtr28pSsICU18ITaQ==","i":"joNA/QNeqdKB+mit","c":"+XYe9
 let ZOOM_URL = "";
 const CLASS_TITLE = "Speaking Club";
 const WEEKS = 8;          // cuántas clases mostrar
-const START_UTC_H = 11;   // 6:00 AM Colombia (UTC-5) = 11:00 UTC
+// Horarios en hora Colombia (UTC-5, sin cambio de horario)
+const SLOTS = [
+  {co:"6:00 – 7:00 AM", utcH:11, utcM:0},   // 6:00 AM Colombia
+  {co:"8:10 – 9:10 AM", utcH:13, utcM:10},  // 8:10 AM Colombia
+];
 const DURATION_MIN = 60;
 // =======================
 
@@ -130,13 +185,18 @@ const pad = n => String(n).padStart(2,"0");
 const gcal = d => `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
 
 function sessions(){
+  // Devuelve los próximos jueves; cada uno con la hora de inicio de cada horario
   const now = new Date();
-  // next Thursday at 11:00 UTC whose end hasn't passed
-  let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), START_UTC_H, 0));
+  let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
   while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate()+1);
-  if (d.getTime() + DURATION_MIN*60000 <= now.getTime()) d.setUTCDate(d.getUTCDate()+7);
+  const last = SLOTS[SLOTS.length-1];
+  const lastEnd = x => Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate(), last.utcH, last.utcM) + DURATION_MIN*60000;
+  if (lastEnd(d) <= now.getTime()) d.setUTCDate(d.getUTCDate()+7);
   const out = [];
-  for (let i=0;i<WEEKS;i++){ const s=new Date(d); s.setUTCDate(d.getUTCDate()+7*i); out.push(s); }
+  for (let i=0;i<WEEKS;i++){
+    const day = new Date(d); day.setUTCDate(d.getUTCDate()+7*i);
+    out.push(SLOTS.map(sl => ({...sl, start:new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), sl.utcH, sl.utcM))})));
+  }
   return out;
 }
 
@@ -168,32 +228,45 @@ function ics(start, count){
 
 const link = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`;
 
-function render(){
- details = `Únete a la clase por Zoom: ${ZOOM_URL}`;
-const list = document.getElementById("list");
-sessions().forEach((s,i)=>{
-  const e = new Date(s.getTime()+DURATION_MIN*60000);
+function slotHTML(sl, n){
+  const s = sl.start, e = new Date(s.getTime()+DURATION_MIN*60000);
+  const done = e.getTime() <= Date.now();
   const g = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(CLASS_TITLE)}&dates=${gcal(s)}/${gcal(e)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(ZOOM_URL)}`;
   const o = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(CLASS_TITLE)}&startdt=${s.toISOString()}&enddt=${e.toISOString()}&body=${encodeURIComponent(details)}&location=${encodeURIComponent(ZOOM_URL)}`;
-  const card = document.createElement("article");
-  card.className = "card" + (i===0?" next":"");
-  card.innerHTML = `
-    <div class="date"><span class="d">${fD.format(s)}</span><span class="m">${fM.format(s).replace(".","")}</span></div>
-    <div class="info">
-      <div class="title-row"><h2>${CLASS_TITLE}</h2>${i===0?'<span class="badge">Próxima clase</span>':''}</div>
-      <div class="time">${cap(fDay.format(s))} · ${t(s)} – ${t(e)} (${offset(s)})</div>
-      ${inColombia?'':'<div class="co">6:00 – 7:00 AM hora Colombia</div>'}
-      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener">${link} Unirse a Zoom</a>
-      <div class="cal-label">Agregar a tu calendario:</div>
-      <div class="cal">
-        <a href="${g}" target="_blank" rel="noopener">Google Calendar</a>
+  return `<div class="slot${done?' done':''}">
+    <div class="slot-when">
+      <span class="slot-label">Horario ${n}</span>
+      <span class="time">${t(s)} – ${t(e)} <span class="tz">(${offset(s)})</span></span>
+      ${inColombia?'':`<span class="co">${sl.co} hora Colombia</span>`}
+    </div>
+    ${done ? '<span class="ended">Ya terminó</span>' : `
+    <div class="slot-actions">
+      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener">${link} Unirse</a>
+      <span class="cal"><span class="cal-t">Calendario:</span>
+        <a href="${g}" target="_blank" rel="noopener">Google</a>
         <a href="${o}" target="_blank" rel="noopener">Outlook</a>
-        <a href="${ics(s,1)}" download="speaking-club-${gcal(s).slice(0,8)}.ics">Apple / Otro (.ics)</a>
-      </div>
-    </div>`;
-  list.appendChild(card);
-});
+        <a href="${ics(s,1)}" download="speaking-club-${gcal(s).slice(0,13)}.ics">Apple</a>
+      </span>
+    </div>`}
+  </div>`;
+}
 
+function render(){
+  details = `Únete a la clase por Zoom: ${ZOOM_URL}`;
+  const list = document.getElementById("list");
+  list.innerHTML = "";
+  sessions().forEach((slots,i)=>{
+    const s = slots[0].start;
+    const card = document.createElement("article");
+    card.className = "card" + (i===0?" next":"");
+    card.innerHTML = `
+      <div class="date"><span class="d">${fD.format(s)}</span><span class="m">${fM.format(s).replace(".","")}</span></div>
+      <div class="info">
+        <div class="title-row"><h2>${cap(fDay.format(s))} · elige un horario</h2>${i===0?'<span class="badge">Próxima clase</span>':''}</div>
+        <div class="slots">${slots.map((sl,k)=>slotHTML(sl,k+1)).join('')}</div>
+      </div>`;
+    list.appendChild(card);
+  });
 }
 
 const b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
