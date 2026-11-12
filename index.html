@@ -121,6 +121,14 @@ main{max-width:860px}
 }
 /* fecha y botón en colores distintos */
 .date{background:var(--fg);color:#ffffff}
+/* horario elegido / bloqueado */
+.slot.chosen{border-color:var(--accent);background:var(--accent-soft)}
+.slot.chosen .slot-label{color:var(--accent-strong)}
+.slot.locked{opacity:.6}
+.slot.locked .time{color:var(--muted)}
+.locked-msg{font-size:.85rem;color:var(--muted)}
+.change{font:inherit;font-size:.8rem;background:none;border:0;padding:2px 0;color:var(--accent-strong);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.change:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
 </style>
 </head>
 <body style="margin:0">
@@ -221,46 +229,75 @@ function ics(start, count){
 
 const link = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>`;
 
-function slotHTML(sl, n){
+// Recordar qué horario eligió cada estudiante (solo en su navegador)
+const CHOICE_KEY = "sc-choices";
+function loadChoices(){ try{ return JSON.parse(localStorage.getItem(CHOICE_KEY)) || {}; }catch(e){ return {}; } }
+function saveChoices(c){
+  // borrar elecciones de jueves que ya pasaron
+  const cut = gcal(new Date(Date.now()-8*86400000)).slice(0,8);
+  Object.keys(c).forEach(k => { if (k < cut) delete c[k]; });
+  try{ localStorage.setItem(CHOICE_KEY, JSON.stringify(c)); }catch(e){}
+}
+
+function slotHTML(sl, n, dayKey, choice){
   const s = sl.start, e = new Date(s.getTime()+DURATION_MIN*60000);
   const done = e.getTime() <= Date.now();
+  const chosen = choice === n, locked = choice && choice !== n;
   const g = `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${encodeURIComponent(CLASS_TITLE)}&dates=${gcal(s)}/${gcal(e)}&details=${encodeURIComponent(details)}&location=${encodeURIComponent(ZOOM_URL)}`;
   const o = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(CLASS_TITLE)}&startdt=${s.toISOString()}&enddt=${e.toISOString()}&body=${encodeURIComponent(details)}&location=${encodeURIComponent(ZOOM_URL)}`;
-  return `<div class="slot${done?' done':''}">
-    <div class="slot-when">
-      <span class="slot-label">Horario ${n}</span>
-      <span class="time">${t(s)} – ${t(e)} <span class="tz">(${offset(s)})</span></span>
-      ${inColombia?'':`<span class="co">${sl.co} hora Colombia</span>`}
-    </div>
-    ${done ? '<span class="ended">Ya terminó</span>' : `
-    <div class="slot-actions">
-      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener">${link} Unirme a este horario</a>
+  let actions;
+  if (done) actions = '<span class="ended">Ya terminó</span>';
+  else if (locked) actions = `<div class="slot-actions"><span class="locked-msg">Ya elegiste tu sesión de este jueves</span>
+      <button type="button" class="change" data-day="${dayKey}">Cambiar de horario</button></div>`;
+  else actions = `<div class="slot-actions">
+      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener" data-day="${dayKey}" data-slot="${n}">${link} ${chosen ? 'Entrar a mi sesión' : 'Unirme a este horario'}</a>
       <span class="cal"><span class="cal-t">Calendario:</span>
         <a href="${g}" target="_blank" rel="noopener">Google</a>
         <a href="${o}" target="_blank" rel="noopener">Outlook</a>
         <a href="${ics(s,1)}" download="speaking-club-${gcal(s).slice(0,13)}.ics">Apple</a>
       </span>
-    </div>`}
+    </div>`;
+  return `<div class="slot${done?' done':''}${chosen?' chosen':''}${locked?' locked':''}">
+    <div class="slot-when">
+      <span class="slot-label">${chosen ? '✓ Elegiste este horario' : 'Horario ' + n}</span>
+      <span class="time">${t(s)} – ${t(e)} <span class="tz">(${offset(s)})</span></span>
+      ${inColombia?'':`<span class="co">${sl.co} hora Colombia</span>`}
+    </div>
+    ${actions}
   </div>`;
 }
 
 function render(){
   details = `Únete a la clase por Zoom: ${ZOOM_URL}`;
   const list = document.getElementById("list");
+  const choices = loadChoices();
   list.innerHTML = "";
   sessions().forEach((slots,i)=>{
     const s = slots[0].start;
+    const dayKey = gcal(s).slice(0,8);
+    const choice = choices[dayKey];
     const card = document.createElement("article");
     card.className = "card" + (i===0?" next":"");
     card.innerHTML = `
       <div class="date"><span class="d">${fD.format(s)}</span><span class="m">${fM.format(s).replace(".","")}</span></div>
       <div class="info">
-        <div class="title-row"><h2>${cap(fDay.format(s))} · elige un horario</h2>${i===0?'<span class="badge">Próxima clase</span>':''}</div>
-        <div class="slots">${slots.map((sl,k)=>slotHTML(sl,k+1)).join('')}</div>
+        <div class="title-row"><h2>${cap(fDay.format(s))} · ${choice ? 'ya elegiste tu horario' : 'elige un horario'}</h2>${i===0?'<span class="badge">Próxima clase</span>':''}</div>
+        <div class="slots">${slots.map((sl,k)=>slotHTML(sl,k+1,dayKey,choice)).join('')}</div>
       </div>`;
     list.appendChild(card);
   });
 }
+
+document.getElementById("list").addEventListener("click", ev => {
+  const join = ev.target.closest(".join[data-slot]");
+  if (join){
+    const c = loadChoices(); c[join.dataset.day] = Number(join.dataset.slot); saveChoices(c);
+    setTimeout(render, 300); // el enlace de Zoom se abre normalmente
+    return;
+  }
+  const ch = ev.target.closest(".change");
+  if (ch){ const c = loadChoices(); delete c[ch.dataset.day]; saveChoices(c); render(); }
+});
 
 const b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
 async function unlock(pw){
