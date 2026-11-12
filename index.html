@@ -150,8 +150,8 @@ main{max-width:860px}
   <aside class="rule" aria-label="Regla de asistencia">
     <div class="rule-mark" aria-hidden="true">1</div>
     <div class="rule-text">
-      <div class="rule-title">Una sesión por día</div>
-      <p>Cada jueves hay dos horarios. Elige <strong>solo uno</strong>: puedes unirte a una sola sesión de speaking por día. Cada semana puedes escoger el horario que mejor te quede.</p>
+      <div class="rule-title">Tú eliges tu sesión del día</div>
+      <p>Cada jueves hay dos sesiones. Puedes unirte a <strong>una</strong>. ¿Cuál te queda mejor esta semana?</p>
     </div>
   </aside>
   <div id="list" style="display:flex;flex-direction:column;gap:22px"></div>
@@ -234,7 +234,7 @@ function slotHTML(sl, n){
     </div>
     ${done ? '<span class="ended">Ya terminó</span>' : `
     <div class="slot-actions">
-      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener">${link} Unirse</a>
+      <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener">${link} Unirme a este horario</a>
       <span class="cal"><span class="cal-t">Calendario:</span>
         <a href="${g}" target="_blank" rel="noopener">Google</a>
         <a href="${o}" target="_blank" rel="noopener">Outlook</a>
