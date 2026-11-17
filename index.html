@@ -129,6 +129,8 @@ main{max-width:860px}
 .locked-msg{font-size:.85rem;color:var(--muted)}
 .change{font:inherit;font-size:.8rem;background:none;border:0;padding:2px 0;color:var(--accent-strong);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
 .change:focus-visible{outline:2px solid var(--accent-line);outline-offset:2px}
+/* fechas de clases adicionales */
+.card.extra .date{background:#74f0d5;color:#1F2937}
 </style>
 </head>
 <body style="margin:0">
@@ -284,7 +286,7 @@ function render(){
     const dayKey = gcal(s).slice(0,8);
     const choice = choices[dayKey];
     const card = document.createElement("article");
-    card.className = "card" + (i===0?" next":"");
+    card.className = "card" + (i===0?" next":"") + (EXTRA_DAYS.includes(dayKey)?" extra":"");
     card.innerHTML = `
       <div class="date"><span class="d">${fD.format(s)}</span><span class="m">${fM.format(s).replace(".","")}</span></div>
       <div class="info">
@@ -305,6 +307,17 @@ document.getElementById("list").addEventListener("click", ev => {
   const ch = ev.target.closest(".change");
   if (ch){ const c = loadChoices(); delete c[ch.dataset.day]; saveChoices(c); render(); }
 });
+
+// Textos de temporada: del 1 de diciembre de 2026 al 4 de enero de 2027 (hora Colombia)
+(function(){
+  const n = Date.now();
+  if (n >= Date.UTC(2026,11,1,5) && n < Date.UTC(2027,0,5,5)){
+    const sub = document.querySelector(".sub");
+    if (sub) sub.textContent = "Días de clase · 6:00 AM y 8:10 AM hora Colombia";
+    const p = document.querySelector(".rule p");
+    if (p) p.innerHTML = p.innerHTML.replace("Cada jueves", "Cada día de clase");
+  }
+})();
 
 const b64 = x => Uint8Array.from(atob(x), c => c.charCodeAt(0));
 async function unlock(pw){
