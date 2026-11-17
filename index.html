@@ -146,7 +146,7 @@ main{max-width:860px}
       <p class="err" id="err" role="alert"></p>
     </form>
     <div class="help">¿Ya eres Brave Speaker y no tienes la contraseña?<br>
-      <a href="https://wa.me/573023629834?text=Hola%20Santi%2C%20soy%20Brave%20Speaker%20y%20quer%C3%ADa%20pedirte%20la%20contrase%C3%B1a%20del%20Speaking%20Club.%20Te%20env%C3%ADo%20el%20pantallazo%20de%20mi%20resultado%20del%20test.%20Muchas%20gracias" target="_blank" rel="noopener">Escríbele a Santi</a></div>
+      <a href="https://wa.me/573023629834?text=Hola%20Santi%2C%20soy%20Brave%20Speaker%20y%20quer%C3%ADa%20pedirte%20la%20contrase%C3%B1a%20del%20Speaking%20Club." target="_blank" rel="noopener">Escríbele a Santi</a></div>
   </div>
 </section>
 <div id="app" hidden>
@@ -185,18 +185,25 @@ const tz = Intl.DateTimeFormat().resolvedOptions().timeZone;
 const pad = n => String(n).padStart(2,"0");
 const gcal = d => `${d.getUTCFullYear()}${pad(d.getUTCMonth()+1)}${pad(d.getUTCDate())}T${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}00Z`;
 
+// Fechas especiales (formato AAAAMMDD)
+const SKIP_DAYS  = ["20261224","20261231"];   // jueves sin clase
+const EXTRA_DAYS = ["20261209","20261216"];   // días de clase adicionales
+
 function sessions(){
-  // Devuelve los próximos jueves; cada uno con la hora de inicio de cada horario
-  const now = new Date();
-  let d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
-  while (d.getUTCDay() !== 4) d.setUTCDate(d.getUTCDate()+1);
-  const last = SLOTS[SLOTS.length-1];
-  const lastEnd = x => Date.UTC(x.getUTCFullYear(), x.getUTCMonth(), x.getUTCDate(), last.utcH, last.utcM) + DURATION_MIN*60000;
-  if (lastEnd(d) <= now.getTime()) d.setUTCDate(d.getUTCDate()+7);
+  // Próximos días de clase (jueves + días adicionales), cada uno con sus horarios
+  const now = Date.now();
+  const today = new Date(); 
+  const base = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
   const out = [];
-  for (let i=0;i<WEEKS;i++){
-    const day = new Date(d); day.setUTCDate(d.getUTCDate()+7*i);
-    out.push(SLOTS.map(sl => ({...sl, start:new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), sl.utcH, sl.utcM))})));
+  for (let i = -1; out.length < WEEKS && i < 140; i++){
+    const day = new Date(base); day.setUTCDate(base.getUTCDate()+i);
+    const key = gcal(day).slice(0,8);
+    const isClass = (day.getUTCDay() === 4 && !SKIP_DAYS.includes(key)) || EXTRA_DAYS.includes(key);
+    if (!isClass) continue;
+    const slots = SLOTS.map(sl => ({...sl, start:new Date(Date.UTC(day.getUTCFullYear(), day.getUTCMonth(), day.getUTCDate(), sl.utcH, sl.utcM))}));
+    const last = slots[slots.length-1].start.getTime() + DURATION_MIN*60000;
+    if (last <= now) continue;
+    out.push(slots);
   }
   return out;
 }
@@ -247,7 +254,7 @@ function slotHTML(sl, n, dayKey, choice){
   const o = `https://outlook.live.com/calendar/0/deeplink/compose?path=/calendar/action/compose&rru=addevent&subject=${encodeURIComponent(CLASS_TITLE)}&startdt=${s.toISOString()}&enddt=${e.toISOString()}&body=${encodeURIComponent(details)}&location=${encodeURIComponent(ZOOM_URL)}`;
   let actions;
   if (done) actions = '<span class="ended">Ya terminó</span>';
-  else if (locked) actions = `<div class="slot-actions"><span class="locked-msg">Ya elegiste tu sesión de este jueves</span>
+  else if (locked) actions = `<div class="slot-actions"><span class="locked-msg">Ya elegiste tu sesión de este día</span>
       <button type="button" class="change" data-day="${dayKey}">Cambiar de horario</button></div>`;
   else actions = `<div class="slot-actions">
       <a class="join" href="${ZOOM_URL}" target="_blank" rel="noopener" data-day="${dayKey}" data-slot="${n}">${link} ${chosen ? 'Entrar a mi sesión' : 'Unirme a este horario'}</a>
